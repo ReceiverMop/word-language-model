@@ -10,7 +10,7 @@ import model
 
 # Add ckp
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
-parser.add_argument('--data', type=str, default='/input', # /input
+parser.add_argument('--data', type=str, default='./input', # /input
                     help='location of the data corpus')
 parser.add_argument('--checkpoint', type=str, default='',
                     help='model checkpoint to use')
@@ -96,7 +96,7 @@ if args.cuda:
 else:
     model.cpu()
 print (model)
-quit()
+#quit()
 
 criterion = nn.CrossEntropyLoss()
 if args.cuda:
