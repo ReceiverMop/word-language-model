@@ -10,7 +10,7 @@ import model
 
 # Add ckp
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
-parser.add_argument('--data', type=str, default='./input', # /input
+parser.add_argument('--data', type=str, default='./inputSimple', # /input
                     help='location of the data corpus')
 parser.add_argument('--checkpoint', type=str, default='',
                     help='model checkpoint to use')
@@ -26,11 +26,23 @@ parser.add_argument('--lr', type=float, default=20,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
+'''
 parser.add_argument('--epochs', type=int, default=40,
                     help='upper epoch limit')
+'''
+parser.add_argument('--epochs', type=int, default=1,
+                    help='upper epoch limit')
+'''
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
+'''
+parser.add_argument('--batch_size', type=int, default=2, metavar='N',
+                    help='batch size')
+'''
 parser.add_argument('--bptt', type=int, default=35,
+                    help='sequence length')
+'''
+parser.add_argument('--bptt', type=int, default=3,
                     help='sequence length')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
@@ -42,7 +54,7 @@ parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
-parser.add_argument('--save', type=str,  default='/output/model.pt', # /output
+parser.add_argument('--save', type=str,  default='./output/model.pt', # /output
                     help='path to save the final model')
 args = parser.parse_args()
 
