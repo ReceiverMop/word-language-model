@@ -155,10 +155,29 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
+    
+    for colIdx in range(0, train_data.size(1)):
+        wordsInColumn = []
+        for rowIdx in range(0, train_data.size(0)):
+            wordsInColumn.append(corpus.dictionary.idx2word[train_data[rowIdx,colIdx]])
+        print('train_data column no. %d: %s' % (colIdx, wordsInColumn))
+    
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
+        
+        for batchIdx in range(0 , args.batch_size):
+            dataWordsInBatch = []
+            targetWordsInBatch = []             
+            for wordIdx in range(0, args.bptt):
+                dataWordsInBatch.append(corpus.dictionary.idx2word[int(data.data.numpy()[wordIdx,batchIdx])])
+                targetWordsInBatch.append(corpus.dictionary.idx2word[int(targets.data.numpy()[batchIdx + wordIdx * args.batch_size])])                                
+            print('input %d to nn: data words in batch no. %d: %s' % (batch,batchIdx,dataWordsInBatch))            
+            print('input %d to nn: target words in batch no. %d: %s' % (batch,batchIdx,targetWordsInBatch))
+            
+        
+        
         hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
