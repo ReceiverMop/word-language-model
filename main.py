@@ -1,7 +1,7 @@
 import argparse
 import time
 import math
-import numpy
+#import numpy
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -19,7 +19,7 @@ parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=200
+parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
@@ -27,23 +27,11 @@ parser.add_argument('--lr', type=float, default=20,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-'''
-parser.add_argument('--epochs', type=int, default=40,
+parser.add_argument('--epochs', type=int, default=1,#40
                     help='upper epoch limit')
-'''
-parser.add_argument('--epochs', type=int, default=1,
-                    help='upper epoch limit')
-'''
-parser.add_argument('--batch_size', type=int, default=20, metavar='N',
-                    help='batch size')
-'''
-parser.add_argument('--batch_size', type=int, default=1, metavar='N',
-                    help='batch size')
-'''
-parser.add_argument('--bptt', type=int, default=35,
-                    help='sequence length')
-'''
-parser.add_argument('--bptt', type=int, default=3,
+parser.add_argument('--batch_size', type=int, default=1,#20 
+                    metavar='N', help='batch size')
+parser.add_argument('--bptt', type=int, default=3,#35
                     help='sequence length')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
@@ -168,10 +156,12 @@ def train():
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         
-        for batchIdx in range(0 , args.batch_size):
+        #for batchIdx in range(0 , args.batch_size):
+        for batchIdx in range(0 , int(data.data.shape[1])):
             dataWordsInBatch = []
             targetWordsInBatch = []             
-            for wordIdx in range(0, args.bptt):
+            #for wordIdx in range(0, args.bptt):
+            for wordIdx in range(0, int(data.data.shape[0])):
                 dataWordsInBatch.append(corpus.dictionary.idx2word[int(data.data.numpy()[wordIdx,batchIdx])])
                 targetWordsInBatch.append(corpus.dictionary.idx2word[int(targets.data.numpy()[batchIdx + wordIdx * args.batch_size])])                                
             print('input %d to nn: data words in batch no. %d: %s' % (batch,batchIdx,dataWordsInBatch))            
