@@ -1,6 +1,7 @@
 import argparse
 import time
 import math
+import numpy
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -18,7 +19,7 @@ parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=200,
+parser.add_argument('--nhid', type=int, default=200
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
@@ -36,7 +37,7 @@ parser.add_argument('--epochs', type=int, default=1,
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
 '''
-parser.add_argument('--batch_size', type=int, default=2, metavar='N',
+parser.add_argument('--batch_size', type=int, default=1, metavar='N',
                     help='batch size')
 '''
 parser.add_argument('--bptt', type=int, default=35,
@@ -181,6 +182,17 @@ def train():
         hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
+        
+        # understanding the model:
+        if (args.batch_size == 1 and args.dropout == 0):
+            import copy
+            hiddenSingle    = model.init_hidden(args.batch_size)
+            hiddenMultiple  = model.init_hidden(args.batch_size)
+            for dataIdx in range(0, len(data)):
+                output, hiddenSingle = model(data[dataIdx], hiddenSingle)
+            output, hiddenMultiple = model(data, hiddenMultiple)
+            # here I printed hiddenMultiple and hiddenSingle to screen and saw they are identical
+        
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
