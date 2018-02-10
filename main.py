@@ -11,7 +11,7 @@ import model
 
 # Add ckp
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
-parser.add_argument('--data', type=str, default='./inputSimple', # /input
+parser.add_argument('--data', type=str, default='./inputSimple', # './input'
                     help='location of the data corpus')
 parser.add_argument('--checkpoint', type=str, default='',
                     help='model checkpoint to use')
@@ -27,11 +27,11 @@ parser.add_argument('--lr', type=float, default=20,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-parser.add_argument('--epochs', type=int, default=1,#40
+parser.add_argument('--epochs', type=int, default=40,#1
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=1,#20 
+parser.add_argument('--batch_size', type=int, default=20,#1 
                     metavar='N', help='batch size')
-parser.add_argument('--bptt', type=int, default=3,#35
+parser.add_argument('--bptt', type=int, default=35,#3
                     help='sequence length')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
@@ -45,7 +45,23 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str,  default='./output/model.pt', # /output
                     help='path to save the final model')
+parser.add_argument('--debug', type=bool,  default=False, # /output
+                    help='in debug mode words are printed to screen')
 args = parser.parse_args()
+
+if args.debug:
+    # debug settings fits LSTM.pdf
+    args.data = './inputSimple'  
+    args.epochs = 1  
+    args.batch_size = 2
+    args.bptt = 35
+    args.dropout = 0.2
+else:
+    args.data = './input'
+    args.epochs = 40
+    args.batch_size = 20
+    args.bptt = 3    
+    args.dropout = 0
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -145,27 +161,29 @@ def train():
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
     
-    for colIdx in range(0, train_data.size(1)):
-        wordsInColumn = []
-        for rowIdx in range(0, train_data.size(0)):
-            wordsInColumn.append(corpus.dictionary.idx2word[train_data[rowIdx,colIdx]])
-        print('train_data column no. %d: %s' % (colIdx, wordsInColumn))
+    if args.debug:
+        for colIdx in range(0, train_data.size(1)):
+            wordsInColumn = []
+            for rowIdx in range(0, train_data.size(0)):
+                wordsInColumn.append(corpus.dictionary.idx2word[train_data[rowIdx,colIdx]])
+            print('train_data column no. %d: %s' % (colIdx, wordsInColumn))
     
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         
-        #for batchIdx in range(0 , args.batch_size):
-        for batchIdx in range(0 , int(data.data.shape[1])):
-            dataWordsInBatch = []
-            targetWordsInBatch = []             
-            #for wordIdx in range(0, args.bptt):
-            for wordIdx in range(0, int(data.data.shape[0])):
-                dataWordsInBatch.append(corpus.dictionary.idx2word[int(data.data.numpy()[wordIdx,batchIdx])])
-                targetWordsInBatch.append(corpus.dictionary.idx2word[int(targets.data.numpy()[batchIdx + wordIdx * args.batch_size])])                                
-            print('input %d to nn: data words in batch no. %d: %s' % (batch,batchIdx,dataWordsInBatch))            
-            print('input %d to nn: target words in batch no. %d: %s' % (batch,batchIdx,targetWordsInBatch))
+        if args.debug:
+            #for batchIdx in range(0 , args.batch_size):
+            for batchIdx in range(0 , int(data.data.shape[1])):
+                dataWordsInBatch = []
+                targetWordsInBatch = []             
+                #for wordIdx in range(0, args.bptt):
+                for wordIdx in range(0, int(data.data.shape[0])):
+                    dataWordsInBatch.append(corpus.dictionary.idx2word[int(data.data.numpy()[wordIdx,batchIdx])])
+                    targetWordsInBatch.append(corpus.dictionary.idx2word[int(targets.data.numpy()[batchIdx + wordIdx * args.batch_size])])                                
+                print('input %d to nn: data words in batch no. %d: %s' % (batch,batchIdx,dataWordsInBatch))            
+                print('input %d to nn: target words in batch no. %d: %s' % (batch,batchIdx,targetWordsInBatch))
             
         
         
