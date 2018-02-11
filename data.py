@@ -1,5 +1,7 @@
 import os
 import torch
+import sys
+
 
 class Dictionary(object):
     """Build word2idx and idx2word from Corpus(train/val/test)"""
@@ -20,33 +22,41 @@ class Dictionary(object):
 
 class Corpus(object):
     """Corpus Tokenizer"""
-    def __init__(self, path):
+    def __init__(self, input_files):
         self.dictionary = Dictionary()
-        self.train = self.tokenize(os.path.join(path, 'train.txt'))
-        self.valid = self.tokenize(os.path.join(path, 'valid.txt'))
-        self.test = self.tokenize(os.path.join(path, 'test.txt'))
+        self.train = self.tokenize(os.path.join(input_files)) #train
+        #self.valid = self.tokenize(os.path.join(path, 'valid.txt'))
+        #self.test = self.tokenize(os.path.join(path, 'test.txt'))
 
-    def tokenize(self, path):
+    def tokenize(self, input_files):
         """Tokenizes a text file."""
-        assert os.path.exists(path)
-        # Add words to the dictionary
-        with open(path, 'r') as f:
-            tokens = 0
-            for line in f:
-                # line to list of token + eos
-                words = line.split() + ['<eos>']
-                tokens += len(words)
-                for word in words:
-                    self.dictionary.add_word(word)
-
-        # Tokenize file content
-        with open(path, 'r') as f:
-            ids = torch.LongTensor(tokens)
-            token = 0
-            for line in f:
-                words = line.split() + ['<eos>']
-                for word in words:
-                    ids[token] = self.dictionary.word2idx[word]
-                    token += 1
+        ifs = input_files.split(",") 
+        for path in ifs:
+            print "Reading  ", path
+            assert os.path.exists(path)
+            n_sent = 0
+            # Add words to the dictionary
+            with open(path, 'r') as f:
+                tokens = 0
+                for line in f:
+                    n_sent+=1
+                    if n_sent % 10000 == 0: #n_sent divides in 10000 without remainder
+                        print  str(round(float(n_sent)/1000, 0))+'K'+'\r', 
+                        sys.stdout.flush()
+                    # line to list of token + eos
+                    words = line.split() + ['<eos>']
+                    tokens += len(words)
+                    for word in words:
+                        self.dictionary.add_word(word)
+    
+            # Tokenize file content
+            with open(path, 'r') as f:
+                ids = torch.LongTensor(tokens)
+                token = 0
+                for line in f:
+                    words = line.split() + ['<eos>']
+                    for word in words:
+                        ids[token] = self.dictionary.word2idx[word] #assign each token in the corpus its index in the dictionary
+                        token += 1
 
         return ids
