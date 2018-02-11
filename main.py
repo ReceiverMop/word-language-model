@@ -5,7 +5,7 @@ import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-
+import pickle
 import data
 import model
 
@@ -74,8 +74,15 @@ if torch.cuda.is_available():
 ###############################################################################
 # Load data
 ###############################################################################
+input_files=   "../corpus/clean_wiki_new.txt,../corpus/billion_word_clean.txt,../corpus/webbase_all_clean.txt,../corpus/news_2013_clean,../corpus/news_2012_clean" #clean without 2 phrase
+input_test=  "../corpus/example_after_2phrase.txt,../corpus/clean_wiki_new_test.txt"
 
-corpus = data.Corpus(args.data)
+corpus = data.Corpus(input_test)
+
+with open('savedDictionary', 'wb') as fp:
+    pickle.dump(corpus, fp)
+
+print('corpus-dictionary saved')
 
 def batchify(data, bsz):
     # Work out how cleanly we can divide the dataset into bsz parts.
@@ -230,23 +237,30 @@ try:
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
+        '''
         val_loss = evaluate(val_data)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
                 'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
                                            val_loss, math.exp(val_loss)))
         print('-' * 89)
-        # Save the model if the validation loss is the best we've seen so far.
+        # Save the model if the validation loss is the best we've seen so far.        
         if not best_val_loss or val_loss < best_val_loss:
             with open(args.save, 'wb') as f:
                 torch.save(model, f)
             best_val_loss = val_loss
         else:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
-            lr /= 4.0
+        '''
+        lr /= 4.0
+        with open(args.save, 'wb') as f:
+            torch.save(model, f)
+
 except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
+
+quit
 
 # Load the best saved model.
 with open(args.save, 'rb') as f:
