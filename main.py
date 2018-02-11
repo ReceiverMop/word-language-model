@@ -17,9 +17,9 @@ parser.add_argument('--checkpoint', type=str, default='',
                     help='model checkpoint to use')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-parser.add_argument('--emsize', type=int, default=200,
+parser.add_argument('--emsize', type=int, default=650,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=200,
+parser.add_argument('--nhid', type=int, default=650,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
@@ -33,7 +33,7 @@ parser.add_argument('--batch_size', type=int, default=20,#1
                     metavar='N', help='batch size')
 parser.add_argument('--bptt', type=int, default=35,#3
                     help='sequence length')
-parser.add_argument('--dropout', type=float, default=0.2,
+parser.add_argument('--dropout', type=float, default=0.5,
                     help='dropout applied to layers (0 = no dropout)')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
@@ -77,7 +77,9 @@ if torch.cuda.is_available():
 input_files=   "../corpus/clean_wiki_new.txt,../corpus/billion_word_clean.txt,../corpus/webbase_all_clean.txt,../corpus/news_2013_clean,../corpus/news_2012_clean" #clean without 2 phrase
 input_test=  "../corpus/example_after_2phrase.txt,../corpus/clean_wiki_new_test.txt"
 
-corpus = data.Corpus(input_test)
+print('starting loading data')
+
+corpus = data.Corpus(input_files)
 
 with open('savedDictionary', 'wb') as fp:
     pickle.dump(corpus, fp)
@@ -97,8 +99,8 @@ def batchify(data, bsz):
 
 eval_batch_size = 10
 train_data = batchify(corpus.train, args.batch_size)
-val_data = batchify(corpus.valid, eval_batch_size)
-test_data = batchify(corpus.test, eval_batch_size)
+#val_data = batchify(corpus.valid, eval_batch_size)
+#test_data = batchify(corpus.test, eval_batch_size)
 
 ###############################################################################
 # Build the model
@@ -261,7 +263,7 @@ except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
 
-quit
+quit()
 
 # Load the best saved model.
 with open(args.save, 'rb') as f:
