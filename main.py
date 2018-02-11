@@ -254,7 +254,7 @@ try:
         else:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
         '''
-        lr /= 4.0
+        lr /= 1.01
         with open(args.save, 'wb') as f:
             torch.save(model, f)
         with open('embeddings', 'wb') as fp:
