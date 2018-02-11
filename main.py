@@ -256,7 +256,7 @@ try:
         with open(args.save, 'wb') as f:
             torch.save(model, f)
         with open('embeddings', 'wb') as fp:
-            pickle.dump(model, fp)
+            pickle.dump(model.encoder.weight.data, fp)
 except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
