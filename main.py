@@ -255,7 +255,8 @@ try:
         lr /= 4.0
         with open(args.save, 'wb') as f:
             torch.save(model, f)
-
+        with open('embeddings', 'wb') as fp:
+            pickle.dump(model, fp)
 except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
