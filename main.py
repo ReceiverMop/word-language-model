@@ -77,11 +77,11 @@ if torch.cuda.is_available():
 input_files=   "../corpus/clean_wiki_new.txt,../corpus/billion_word_clean.txt,../corpus/webbase_all_clean.txt,../corpus/news_2013_clean,../corpus/news_2012_clean" #clean without 2 phrase
 input_test=  "../corpus/example_after_2phrase.txt,../corpus/clean_wiki_new_test.txt"
 
-print('starting loading data')
+print('starting loading test data')
 
-corpus = data.Corpus(input_files)
+corpus = data.Corpus(input_test)
 
-with open('savedDictionary', 'wb') as fp:
+with open('savedDictionaryTest', 'wb') as fp:
     pickle.dump(corpus, fp)
 
 print('corpus-dictionary saved')
