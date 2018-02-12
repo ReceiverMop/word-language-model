@@ -8,7 +8,8 @@ class Dictionary(object):
     def __init__(self):
         self.word2idx = {} # word: index
         self.idx2word = [] # position(index): word
-
+        #self.files={} #name_file:number of lines
+        
     def add_word(self, word):
         """Create/Update word2idx and idx2word"""
         if word not in self.word2idx:
@@ -34,29 +35,18 @@ class Corpus(object):
         for path in ifs:
             print "Reading  ", path
             assert os.path.exists(path)
-            n_sent = 0
+            n_lines_per_file = 0
             # Add words to the dictionary
             with open(path, 'r') as f:
-                tokens = 0
                 for line in f:
-                    n_sent+=1
-                    if n_sent % 10000 == 0: #n_sent divides in 10000 without remainder
-                        print  str(round(float(n_sent)/1000, 0))+'K'+'\r', 
+                    n_lines_per_file+=1
+                    if n_lines_per_file % 10000 == 0: #n_sent divides in 10000 without remainder
+                        print  str(round(float(n_lines_per_file)/1000, 0))+'K'+'\r', 
                         sys.stdout.flush()
                     # line to list of token + eos
                     words = line.split() + ['<eos>']
-                    tokens += len(words)
                     for word in words:
                         self.dictionary.add_word(word)
-    
-            # Tokenize file content
-            with open(path, 'r') as f:
-                ids = torch.LongTensor(tokens)
-                token = 0
-                for line in f:
-                    words = line.split() + ['<eos>']
-                    for word in words:
-                        ids[token] = self.dictionary.word2idx[word] #assign each token in the corpus its index in the dictionary
-                        token += 1
+            #self.dictionary.files[path]= n_lines_per_file
 
-        return ids
+        return 

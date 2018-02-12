@@ -8,6 +8,9 @@ from torch.autograd import Variable
 import pickle
 import data
 import model
+from itertools import islice
+import os
+import itertools
 
 # Add ckp
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
@@ -55,11 +58,11 @@ if args.debug:
     args.epochs = 1  
     args.batch_size = 2
     args.bptt = 35
-    args.dropout = 0.2
+    args.dropout = 0
 else:
     args.data = './input'
-    args.epochs = 40
-    args.batch_size = 20
+    args.epochs = 2 #40
+    args.batch_size = 1 
     args.bptt = 3    
     args.dropout = 0
 
@@ -74,12 +77,15 @@ if torch.cuda.is_available():
 ###############################################################################
 # Load data
 ###############################################################################
-input_files=   "../corpus/clean_wiki_new.txt,../corpus/billion_word_clean.txt,../corpus/webbase_all_clean.txt,../corpus/news_2013_clean,../corpus/news_2012_clean" #clean without 2 phrase
-input_test=  "../corpus/example_after_2phrase.txt,../corpus/clean_wiki_new_test.txt"
+#input_files=   "../corpus/clean_wiki_new.txt,../corpus/billion_word_clean.txt,../corpus/webbase_all_clean.txt,../corpus/news_2013_clean,../corpus/news_2012_clean" #clean without 2 phrase
+#input_test=  "../corpus/example_after_2phrase.txt,../corpus/clean_wiki_new_test.txt"
+#input_files=   "/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/clean_wiki_new.txt,/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/billion_word_clean.txt,/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/webbase_all_clean.txt,/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/news_2013_clean,/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/news_2012_clean" #clean without 2 phrase
+#input_files= "/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/clean_wiki_new_test.txt"
+input_files = "../corpus/clean_wiki_new_test.txt"
 
 print('starting loading test data')
 
-corpus = data.Corpus(input_test)
+corpus = data.Corpus(input_files)
 
 with open('savedDictionaryTest', 'wb') as fp:
     pickle.dump(corpus, fp)
@@ -98,7 +104,7 @@ def batchify(data, bsz):
     return data
 
 eval_batch_size = 10
-train_data = batchify(corpus.train, args.batch_size)
+#train_data = batchify(corpus.train, args.batch_size)
 #val_data = batchify(corpus.valid, eval_batch_size)
 #test_data = batchify(corpus.test, eval_batch_size)
 
@@ -147,6 +153,7 @@ def get_batch(source, i, evaluation=False):
     return data, target
 
 
+
 def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
     model.eval()
@@ -177,58 +184,88 @@ def train():
                 wordsInColumn.append(corpus.dictionary.idx2word[train_data[rowIdx,colIdx]])
             print('train_data column no. %d: %s' % (colIdx, wordsInColumn))
     
-    for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
-        data, targets = get_batch(train_data, i)
-        # Starting each batch, we detach the hidden state from how it was previously produced.
-        # If we didn't, the model would try backpropagating all the way to start of the dataset.
+    ifs = input_files.split(",") 
+    
+    for path in ifs:
+        print "Reading  ", path
+        assert os.path.exists(path)
         
-        if args.debug:
-            #for batchIdx in range(0 , args.batch_size):
-            for batchIdx in range(0 , int(data.data.shape[1])):
-                dataWordsInBatch = []
-                targetWordsInBatch = []             
-                #for wordIdx in range(0, args.bptt):
-                for wordIdx in range(0, int(data.data.shape[0])):
-                    dataWordsInBatch.append(corpus.dictionary.idx2word[int(data.data.numpy()[wordIdx,batchIdx])])
-                    targetWordsInBatch.append(corpus.dictionary.idx2word[int(targets.data.numpy()[batchIdx + wordIdx * args.batch_size])])                                
-                print('input %d to nn: data words in batch no. %d: %s' % (batch,batchIdx,dataWordsInBatch))            
-                print('input %d to nn: target words in batch no. %d: %s' % (batch,batchIdx,targetWordsInBatch))
+        count_pairs=0
+        with open(path) as f:
+            for line1,line2 in itertools.izip_longest(*[f]*2):
+                ids = torch.LongTensor(1000) #not sure what is better 1K or 10K
+                token=0
+                count_pairs+=1
+                print count_pairs
+                words1 = line1.split()  + ['<eos>']
+                for word in words1:
+                    ids[token] = corpus.dictionary.word2idx[word] 
+                    token += 1
+                if not line2:
+                    print 'Ive reached the end'
+                    break
+                else:
+                    words2 = line2.split()  + ['<eos>']
+                    for word in words2:
+                        ids[token] = corpus.dictionary.word2idx[word] 
+                        token += 1
+                #continue
+                #data, targets = get_batch(fp, i, i+args.bptt)
+                data=ids[0:token-1] #check
+                targets=ids[1:token] #check
+                data = Variable(data, volatile=False)
+                targets = Variable(targets.view(-1))
+                #continue
+            # Starting each batch, we detach the hidden state from how it was previously produced.
+            # If we didn't, the model would try backpropagating all the way to start of the dataset.
             
+                if args.debug:
+                    #for batchIdx in range(0 , args.batch_size):
+                    for batchIdx in range(0 , int(data.data.shape[1])):
+                        dataWordsInBatch = []
+                        targetWordsInBatch = []             
+                        #for wordIdx in range(0, args.bptt):
+                        for wordIdx in range(0, int(data.data.shape[0])):
+                            dataWordsInBatch.append(corpus.dictionary.idx2word[int(data.data.numpy()[wordIdx,batchIdx])])
+                            targetWordsInBatch.append(corpus.dictionary.idx2word[int(targets.data.numpy()[batchIdx + wordIdx * args.batch_size])])                                
+                        print('input %d to nn: data words in batch no. %d: %s' % (batch,batchIdx,dataWordsInBatch))            
+                        print('input %d to nn: target words in batch no. %d: %s' % (batch,batchIdx,targetWordsInBatch))
+                    
+                
+                
+                hidden = repackage_hidden(hidden)
+                model.zero_grad()
+                output, hidden = model(data, hidden)
+                
+                # understanding the model:
+                if (args.batch_size == 1 and args.dropout == 0):
+                    import copy
+                    hiddenSingle    = model.init_hidden(args.batch_size)
+                    hiddenMultiple  = model.init_hidden(args.batch_size)
+                    for dataIdx in range(0, len(data)):
+                        output, hiddenSingle = model(data[dataIdx], hiddenSingle)
+                    output, hiddenMultiple = model(data, hiddenMultiple)
+                    # here I printed hiddenMultiple and hiddenSingle to screen and saw they are identical
+                
+                loss = criterion(output.view(-1, ntokens), targets)
+                loss.backward()
         
+                # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+                torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+                for p in model.parameters():
+                    p.data.add_(-lr, p.grad.data)
         
-        hidden = repackage_hidden(hidden)
-        model.zero_grad()
-        output, hidden = model(data, hidden)
+                total_loss += loss.data
         
-        # understanding the model:
-        if (args.batch_size == 1 and args.dropout == 0):
-            import copy
-            hiddenSingle    = model.init_hidden(args.batch_size)
-            hiddenMultiple  = model.init_hidden(args.batch_size)
-            for dataIdx in range(0, len(data)):
-                output, hiddenSingle = model(data[dataIdx], hiddenSingle)
-            output, hiddenMultiple = model(data, hiddenMultiple)
-            # here I printed hiddenMultiple and hiddenSingle to screen and saw they are identical
-        
-        loss = criterion(output.view(-1, ntokens), targets)
-        loss.backward()
-
-        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
-
-        total_loss += loss.data
-
-        if batch % args.log_interval == 0 and batch > 0:
-            cur_loss = total_loss[0] / args.log_interval
-            elapsed = time.time() - start_time
-            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, lr,
-                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
-            total_loss = 0
-            start_time = time.time()
+                if count_pairs % args.log_interval == 0 and count_pairs > 0:
+                    cur_loss = total_loss[0] / args.log_interval
+                    elapsed = time.time() - start_time
+                    print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
+                            'loss {:5.2f} | ppl {:8.2f}'.format(
+                        epoch, count_pairs, token // args.bptt, lr,
+                        elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+                    total_loss = 0
+                    start_time = time.time()
 
 # Loop over epochs.
 lr = args.lr
@@ -255,10 +292,11 @@ try:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
         '''
         lr /= 1.01
-        with open(args.save, 'wb') as f:
+        with open("output", 'wb') as f:
             torch.save(model, f)
         with open('embeddings', 'wb') as fp:
             pickle.dump(model.encoder.weight.data, fp)
+        print "I'm here"
 except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
