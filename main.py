@@ -45,7 +45,7 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str,  default='./output/model.pt', # /output
                     help='path to save the final model')
-parser.add_argument('--debug', type=bool,  default=False, # /output
+parser.add_argument('--debug', type=bool,  default=True, # /output
                     help='in debug mode words are printed to screen')
 args = parser.parse_args()
 
@@ -173,7 +173,7 @@ def train():
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         
-        if args.debug:
+        if args.debug and not(args.cuda):
             #for batchIdx in range(0 , args.batch_size):
             for batchIdx in range(0 , int(data.data.shape[1])):
                 dataWordsInBatch = []
