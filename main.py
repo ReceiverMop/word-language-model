@@ -11,8 +11,12 @@ import model
 from itertools import islice
 import os
 import itertools
-
+import re
 # Add ckp
+
+DIC_Ready=True #True if you already have readily available dictionary
+
+
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='./inputSimple', # './input'
                     help='location of the data corpus')
@@ -20,11 +24,11 @@ parser.add_argument('--checkpoint', type=str, default='',
                     help='model checkpoint to use')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-parser.add_argument('--emsize', type=int, default=650,
+parser.add_argument('--emsize', type=int, default=300,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=650,
+parser.add_argument('--nhid', type=int, default=300,
                     help='number of hidden units per layer')
-parser.add_argument('--nlayers', type=int, default=2,
+parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
 parser.add_argument('--lr', type=float, default=20,
                     help='initial learning rate')
@@ -61,7 +65,7 @@ if args.debug:
     args.dropout = 0
 else:
     args.data = './input'
-    args.epochs = 2 #40
+    args.epochs = 1 #40
     args.batch_size = 1 
     args.bptt = 3    
     args.dropout = 0
@@ -81,16 +85,28 @@ input_files=   "../corpus/clean_wiki_new.txt,../corpus/billion_word_clean.txt,..
 #input_test=  "../corpus/example_after_2phrase.txt,../corpus/clean_wiki_new_test.txt"
 #input_files=   "/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/clean_wiki_new.txt,/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/billion_word_clean.txt,/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/webbase_all_clean.txt,/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/news_2013_clean,/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/news_2012_clean" #clean without 2 phrase
 #input_files= "/home/ira/Dropbox/IraTechnion/Patterns_Research/sp_sg/clean_corpus_english/clean_wiki_new_test.txt"
-#input_files = "../corpus/clean_wiki_new_test.txt"
+input_files = "./clean_wiki_new_test.txt"
 
 print('starting loading test data')
 
-corpus = data.Corpus(input_files)
+if DIC_Ready:
+    objects = []
+    with (open('../corpus/savedDictionaryALL', "rb")) as openfile:
+        while True:
+            try:
+                objects.append(pickle.load(openfile))
+            except EOFError:
+                break
+    corpus=objects[0]
+    print('corpus-dictionary read')
+else:
+    corpus = data.Corpus(input_files)
+    with open('savedDictionaryALLhhh', 'wb') as fp:
+        pickle.dump(corpus, fp)
+    print('corpus-dictionary saved')
 
-with open('savedDictionaryTest', 'wb') as fp:
-    pickle.dump(corpus, fp)
+print('dictionary contains %d words' % len(corpus.dictionary))
 
-print('corpus-dictionary saved')
 
 def batchify(data, bsz):
     # Work out how cleanly we can divide the dataset into bsz parts.
@@ -192,23 +208,44 @@ def train():
         
         count_pairs=0
         with open(path) as f:
-            for line1,line2 in itertools.izip_longest(*[f]*2):
+            #for line1,line2 in itertools.izip_longest(*[f]*2):
+            for line1 in f:
+                line_start_time = time.time()
                 ids = torch.LongTensor(1000) #not sure what is better 1K or 10K
                 token=0
                 count_pairs+=1
                 print count_pairs
-                words1 = line1.split()  + ['<eos>']
+                words1=re.findall(r'\w+', line1) + ['<eos>']
                 for word in words1:
-                    ids[token] = corpus.dictionary.word2idx[word] 
-                    token += 1
-                if not line2:
-                    print 'Ive reached the end'
-                    break
-                else:
-                    words2 = line2.split()  + ['<eos>']
-                    for word in words2:
-                        ids[token] = corpus.dictionary.word2idx[word] 
+                    #===========================================================
+                    # if word in corpus.dictionary.word2idx:
+                    #     ids[token] = corpus.dictionary.word2idx[word] 
+                    # else:
+                    #     ids[token]=0  ##OOV (out of vocabulary word), corpus.dictionary.word2idx[<unk>]=0 
+                    # token += 1
+                    #===========================================================
+                    try:
+                        ids[token] = corpus.dictionary.word2idx[word]
                         token += 1
+                    except:
+                        ids[token]=0 ##OOV (out of vocabulary word), corpus.dictionary.word2idx[<unk>]=0 
+                        token += 1
+                print "number of tokens in a line is:", token
+
+                #===============================================================
+                # if not line2:
+                #     print 'Ive reached the end'
+                #     break
+                # else:
+                #     words2=re.findall(r'\w+', line2) + ['<eos>']
+                #     for word in words2:
+                #         if word in corpus.dictionary.word2idx:
+                #             ids[token] = corpus.dictionary.word2idx[word] 
+                #         else:
+                #             ids[token]=0   ##OOV (out of vocabulary word), corpus.dictionary.word2idx[<unk>]=0 
+                #         token += 1
+                #===============================================================
+                       
                 #continue
                 #data, targets = get_batch(fp, i, i+args.bptt)
                 data=ids[0:token-1] #check
@@ -232,10 +269,15 @@ def train():
                         print('input %d to nn: target words in batch no. %d: %s' % (batch,batchIdx,targetWordsInBatch))
                     
                 
+                lineProcessingTime = time.time() - line_start_time
+                print('line no. %d: data proccess time: %f' % (count_pairs, lineProcessingTime))
                 
+                nnStartTime = time.time()
                 hidden = repackage_hidden(hidden)
                 model.zero_grad()
                 output, hidden = model(data, hidden)
+                netProcessingTime = time.time() - nnStartTime
+                print('line no. %d: net train time: %f' % (count_pairs, netProcessingTime))
                 
                 # understanding the model:
                 if (args.batch_size == 1 and args.dropout == 0):
