@@ -130,7 +130,7 @@ eval_batch_size = 10
 
 ntokens = len(corpus.dictionary)
 model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
-
+'''
 # Load checkpoint
 if args.checkpoint != '':
     if args.cuda:
@@ -138,9 +138,10 @@ if args.checkpoint != '':
     else:
         # Load GPU model on CPU
         model = torch.load(args.checkpoint, map_location=lambda storage, loc: storage)
+'''
 
 if args.cuda:
-    model.cuda()
+    model = model.cuda()
 else:
     model.cpu()
 print (model)
@@ -192,6 +193,8 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
+
+    
     
     if args.debug:
         for colIdx in range(0, train_data.size(1)):
@@ -280,11 +283,15 @@ def train():
                 print('line no. %d: data proccess time: %f ms' % (count_pairs, lineProcessingTimeMs))
                 
                 print('data size: ', data.data.shape)
-                print('hidden size: ', hidden.data.shape)
+                #print('hidden size: ', hidden.size())
                 
                 nnStartTime = time.time()
                 hidden = repackage_hidden(hidden)
                 model.zero_grad()
+
+                print('data type: ', type(data))
+                print('hidden type: ', type(hidden))
+
                 output, hidden = model(data, hidden)
                 
                 
