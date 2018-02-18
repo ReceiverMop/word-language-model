@@ -250,12 +250,15 @@ def train():
                 #data, targets = get_batch(fp, i, i+args.bptt)
                 data=ids[0:token-1] #check
                 targets=ids[1:token] #check
-                data = Variable(data, volatile=False)
-                targets = Variable(targets.view(-1))
                 
                 if args.cuda:
                     data    = data.cuda()
                     targets = targets.cuda()
+                    
+                data = Variable(data, volatile=False)
+                targets = Variable(targets.view(-1))
+                
+                
                 #continue
             # Starting each batch, we detach the hidden state from how it was previously produced.
             # If we didn't, the model would try backpropagating all the way to start of the dataset.
@@ -280,8 +283,7 @@ def train():
                 hidden = repackage_hidden(hidden)
                 model.zero_grad()
                 output, hidden = model(data, hidden)
-                netProcessingTimeMs = (time.time() - nnStartTime)*1000
-                print('line no. %d: net train time: %f ms' % (count_pairs, netProcessingTimeMs))
+                
                 
                 # understanding the model:
                 if (args.batch_size == 1 and args.dropout == 0):
@@ -302,7 +304,10 @@ def train():
                     p.data.add_(-lr, p.grad.data)
         
                 total_loss += loss.data
-        
+                
+                netProcessingTimeMs = (time.time() - nnStartTime)*1000
+                print('line no. %d: net train time: %f ms' % (count_pairs, netProcessingTimeMs))
+                
                 if count_pairs % args.log_interval == 0 and count_pairs > 0:
                     cur_loss = total_loss[0] / args.log_interval
                     elapsed = time.time() - start_time
