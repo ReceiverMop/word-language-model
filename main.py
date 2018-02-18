@@ -279,6 +279,9 @@ def train():
                 lineProcessingTimeMs = (time.time() - line_start_time)*1000
                 print('line no. %d: data proccess time: %f ms' % (count_pairs, lineProcessingTimeMs))
                 
+                print('data size: ', data.data.shape)
+                print('hidden size: ', hidden.data.shape)
+                
                 nnStartTime = time.time()
                 hidden = repackage_hidden(hidden)
                 model.zero_grad()
