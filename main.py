@@ -252,6 +252,10 @@ def train():
                 targets=ids[1:token] #check
                 data = Variable(data, volatile=False)
                 targets = Variable(targets.view(-1))
+                
+                if args.cuda:
+                    data    = data.cuda()
+                    targets = targets.cuda()
                 #continue
             # Starting each batch, we detach the hidden state from how it was previously produced.
             # If we didn't, the model would try backpropagating all the way to start of the dataset.
@@ -269,15 +273,15 @@ def train():
                         print('input %d to nn: target words in batch no. %d: %s' % (batch,batchIdx,targetWordsInBatch))
                     
                 
-                lineProcessingTime = time.time() - line_start_time
-                print('line no. %d: data proccess time: %f' % (count_pairs, lineProcessingTime))
+                lineProcessingTimeMs = (time.time() - line_start_time)*1000
+                print('line no. %d: data proccess time: %f ms' % (count_pairs, lineProcessingTimeMs))
                 
                 nnStartTime = time.time()
                 hidden = repackage_hidden(hidden)
                 model.zero_grad()
                 output, hidden = model(data, hidden)
-                netProcessingTime = time.time() - nnStartTime
-                print('line no. %d: net train time: %f' % (count_pairs, netProcessingTime))
+                netProcessingTimeMs = (time.time() - nnStartTime)*1000
+                print('line no. %d: net train time: %f ms' % (count_pairs, netProcessingTimeMs))
                 
                 # understanding the model:
                 if (args.batch_size == 1 and args.dropout == 0):
