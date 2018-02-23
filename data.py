@@ -3,7 +3,7 @@ import torch
 import sys
 import re
 
-Min_Freq=100
+Min_Freq=3
 
 class Dictionary(object):
     """Build word2idx and idx2word from Corpus(train/val/test)"""
@@ -11,7 +11,7 @@ class Dictionary(object):
         self.word2idx = {} # word: index
         self.idx2word = ['<unk>'] # position(index): word
         self.word2idx['<unk>']=0
-        #self.files={} #name_file:number of lines
+        self.files={} #name_file:number of lines
         self.counts={} #word: its count in the corpus
     
     def add_word(self, word):
@@ -49,6 +49,7 @@ class Corpus(object):
             n_lines_per_file = 0
             # Add words to the dictionary
             with open(path, 'r') as f:
+                tokens=0
                 for line in f:
                     n_lines_per_file+=1
                     if n_lines_per_file % 10000 == 0: #n_sent divides in 10000 without remainder
@@ -56,10 +57,36 @@ class Corpus(object):
                         sys.stdout.flush()
                     # line to list of token + eos
                     words=re.findall(r'\w+', line) + ['<eos>']
+                    tokens += len(words)
                     for word in words:
                         self.dictionary.add_word(word)
-            #self.dictionary.files[path]= n_lines_per_file
+            self.dictionary.files[path]= n_lines_per_file
+         # Tokenize file content
         return 
+    #===========================================================================
+    #     ifs = input_files.split(",") 
+    # 
+    #     for path in ifs:
+    #         print "Reading  ", path
+    #         assert os.path.exists(path)
+    #===========================================================================
+#         with open(path, 'r') as f:
+#             ids = torch.LongTensor(tokens)
+#             token = 0
+#             for line in f:
+#                 words=re.findall(r'\w+', line) + ['<eos>']
+#                 for word in words:
+#                     try:
+#                         ids[token] = corpus.dictionary.word2idx[word]
+#                         token += 1
+#                     except:
+#                         ids[token]=0 ##OOV (out of vocabulary word), corpus.dictionary.word2idx[<unk>]=0 
+#                         token += 1
+#                     #ids[token] = self.dictionary.word2idx[word]
+#                     #token += 1
+# 
+#         return ids
+         
     
     
     
