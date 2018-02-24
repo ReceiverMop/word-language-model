@@ -347,7 +347,7 @@ def train():
 		    model.encoder.weight.requires_grad = True
                     trainEmb = True
 
-		if True:
+		if count_100 > 10:
 		    for param in model.rnn.parameters():
 		        param.requires_grad = not(trainEmb)
 		    model.encoder.weight.requires_grad = trainEmb
