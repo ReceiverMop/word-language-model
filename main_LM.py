@@ -38,7 +38,7 @@ parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=100,
+parser.add_argument('--lr', type=float, default=10,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
@@ -52,7 +52,7 @@ parser.add_argument('--dropout', type=float, default=0.5,
                     help='dropout applied to layers (0 = no dropout)')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
-parser.add_argument('--seed', type=int, default=1111,
+parser.add_argument('--seed', type=int, default=1511,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
@@ -75,9 +75,12 @@ if args.debug:
 else:
     args.data = './input'
     args.epochs = 1 #40
-    args.batch_size = 40 #100
-    args.bptt = 30    
-    args.dropout = 0
+    args.batch_size = 4 #20,100
+    args.bptt = 30 #30   
+    args.dropout = 0.2
+    args.initEmb = True
+    args.sparseEmb = False
+    #args.cuda = True
     #args.model = 'GRU'	
 
 # Set the random seed manually for reproducibility.
@@ -192,9 +195,13 @@ def build_init_weights_matrix():
             #new_mat.weight.data[row_new]=torch.from_numpy(X)
     return new_mat
 
-new_mat=build_init_weights_matrix()
+if args.initEmb:
+    new_mat=build_init_weights_matrix()
+else:
+    new_mat=[]
 
-model = model.RNNModel(args.model, ntokens, new_mat, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
+
+model = model.RNNModel(args.model, ntokens, new_mat, args.sparseEmb, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
 
 # Load checkpoint
 if args.checkpoint != '':
@@ -212,6 +219,8 @@ print (model)
 #quit()
 
 criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr = args.lr)
+#optimizer = torch.optim.SGD(model.parameters(), lr = args.lr)
 if args.cuda:
     criterion.cuda()
 
@@ -308,10 +317,12 @@ def train():
     # Turn on training mode which enables dropout.
     model.train()
     total_loss = 0
+    sprmMax = -1
+    sprmMaxSave = 0.42
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
-    
+    model.encoder.weight.requires_grad = False
     if args.debug:
         for colIdx in range(0, train_data.size(1)):
             wordsInColumn = []
@@ -328,16 +339,37 @@ def train():
         
         count_100=0
         with open(path) as f:
-            for next_lines in itertools.izip_longest(*[f]*100): #reads 100 lines at a time
+            for next_lines in itertools.izip_longest(*[f]*200): #reads 100 lines at a time
                 line_start_time = time.time()
                 count_100+=1
+
+		if count_100 == 10:
+		    model.encoder.weight.requires_grad = True
+                    trainEmb = True
+
+		if True:
+		    for param in model.rnn.parameters():
+		        param.requires_grad = not(trainEmb)
+		    model.encoder.weight.requires_grad = trainEmb
+		    trainEmb = not(trainEmb)
+
                 #if count_100  % 10== 0:
                 if True:
                     sprm=compute_spearman(pair_list_human)
+		    print('sprmMax: %f ' % sprmMax)
                     '''
                     with open("output_file_lr200.dat", 'a') as ofh:
                         ofh.write(str(count_100)+":"+str(sprm)+'\n')
-                    '''    
+                    '''
+		    if sprm > sprmMax:
+			sprmMax = sprm
+		    if sprm > (sprmMaxSave + 0.01):
+			sprmMaxSave = sprm
+			print('saving embeddings...')
+                        with open('embeddingsRon', 'wb') as fp:
+                            pickle.dump(model.encoder.weight.data, fp)
+                        print('embeddings saved')
+    
                 (tokens_set, ids)=tokenize_per_chunck(next_lines)
                 
                 #if not words_set.intersection(tokens_set):
@@ -352,10 +384,12 @@ def train():
                 nnStartTime = time.time()
                 forProcessingTime = 0
                 total_loss = 0
+                total_perplexity = 0
+		nTargets = 0
                 for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):  #args.bptt = 3 
                     #print batch  
                     data, targets = get_batch(train_data, i)    
-                           
+                    nTargets = nTargets + len(targets)       
                     if args.debug:
                         #for batchIdx in range(0 , args.batch_size):
                         for batchIdx in range(0 , int(data.data.shape[1])):
@@ -369,9 +403,10 @@ def train():
                             print('input %d to nn: target words in batch no. %d: %s' % (batch,batchIdx,targetWordsInBatch))
                         
                             
-                            
+                    #ipdb.set_trace()        
                     hidden = repackage_hidden(hidden)
-                    model.zero_grad()
+                    #model.zero_grad()
+		    optimizer.zero_grad()
                     output, hidden = model(data, hidden)
                     
                     # understanding the model:
@@ -384,18 +419,38 @@ def train():
                         output, hiddenMultiple = model(data, hiddenMultiple)
                         # here I printed hiddenMultiple and hiddenSingle to screen and saw they are identical
                     
-                    loss = criterion(output.view(-1, ntokens), targets)
+ 		    output =  output.view(-1, ntokens)
+                    loss = criterion(output, targets)
                     loss.backward()
-            
+                    optimizer.step()
+
+	            #ipdb.set_trace()
+		    #if enableMyLossCalc:
+		    if False:
+                        myLoss = 0
+			nLabels = output.data.size()[0]
+            		for imageIdx in range(nLabels):
+              	 	    SoftmaxNumerator = numpy.sum(numpy.exp(output.data[imageIdx].numpy())) 
+			    Softmax         = numpy.exp(output.data[imageIdx].numpy()) / SoftmaxNumerator
+	                    likelihood      = Softmax[targets.data[imageIdx]]
+            		    logLikelihood   = numpy.log(likelihood)
+	                    negativeLogLikelihood = -logLikelihood
+            	  	    myLoss += negativeLogLikelihood
+	 	        myLoss = myLoss/nLabels
+	                print('loss is %.4f; myLoss is %.4f' % (loss.data[0], myLoss))
+
+		    #ipdb.set_trace()
+		    '''
                     # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-                    torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
-		            forProcessingStartTime = time.time()
+                    #torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+		    forProcessingStartTime = time.time()
                     for p in model.parameters():
                         p.data.add_(-lr, p.grad.data)
             
-	                forProcessingTime = forProcessingTime + (time.time() - forProcessingStartTime)
+	            forProcessingTime = forProcessingTime + (time.time() - forProcessingStartTime)
+  	            '''
                     total_loss += loss.data
-                    
+                    total_perplexity += pow(2 , loss.data[0])
                     '''
                     if batch % args.log_interval == 0 and batch > 0:
                         cur_loss = total_loss[0] / args.log_interval
@@ -408,14 +463,18 @@ def train():
                         start_time = time.time()
                     '''
                 netProcessingTimeMs = (time.time() - nnStartTime)*1000
-		        forProcessingTimeMs = forProcessingTime*1000 
-		        forPercent = forProcessingTimeMs/netProcessingTimeMs*100
-		        print('Lines no. %d: line processing time: %f ms' % (count_100, lineProcessingTimeMs))
-                print('Lines no. %d: net train time: %f ms' % (count_100, netProcessingTimeMs))
-		        print('for time out of net time: %f percent' % forPercent)
-		        print('for absolute time %f ms' % forProcessingTimeMs)
-                print('total loss: %f' % total_loss) 
-
+		forProcessingTimeMs = forProcessingTime*1000 
+		forPercent = forProcessingTimeMs/netProcessingTimeMs*100
+		normalizedLoss = total_loss[0]/nTargets
+		#ipdb.set_trace()
+                normalizedPerplexity = total_perplexity/nTargets
+		#print('Lines no. %d: line processing time: %f ms' % (count_100, lineProcessingTimeMs))
+                #print('Lines no. %d: net train time: %f ms' % (count_100, netProcessingTimeMs))
+		#print('for time out of net time: %f percent' % forPercent)
+		#print('for absolute time %f ms' % forProcessingTimeMs)
+                #print('normalized loss: %f' % normalizedLoss) 
+                print('normalized perplexity: %f' % normalizedPerplexity)
+		print('##############	%d	################' % count_100)
 # Loop over epochs.
 lr = args.lr
 best_val_loss = None
@@ -424,7 +483,7 @@ best_val_loss = None
 try:
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
-        
+        sprmMax = 0.423
         train()
         
         '''
@@ -442,7 +501,7 @@ try:
         else:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
         '''
-        lr /= 1.01
+        #lr /= 1.01
         with open("output", 'wb') as f:
             torch.save(model, f)
         with open('embeddings', 'wb') as fp:
