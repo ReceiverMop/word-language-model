@@ -385,6 +385,7 @@ def train():
                 forProcessingTime = 0
                 total_loss = 0
                 total_perplexity = 0
+		badCount = 0
 		nTargets = 0
                 for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):  #args.bptt = 3 
                     #print batch  
@@ -439,6 +440,20 @@ def train():
 	 	        myLoss = myLoss/nLabels
 	                print('loss is %.4f; myLoss is %.4f' % (loss.data[0], myLoss))
 
+		    if False:
+                        myLoss = 0
+			nLabels = output.data.size()[0]
+            		for imageIdx in range(nLabels):
+              	 	    SoftmaxNumerator = numpy.sum(numpy.exp(output.data[imageIdx].cpu().numpy())) 
+			    Softmax         = numpy.exp(output.data[imageIdx].cpu().numpy()) / SoftmaxNumerator
+	                    likelihood      = Softmax[targets.data[imageIdx]]
+            		    #logLikelihood   = numpy.log(likelihood)
+	                    #negativeLogLikelihood = -logLikelihood
+            	  	    myLoss += likelihood
+	 	        myLoss = myLoss*100
+			badCount = badCount + myLoss
+                        #print('avg likelihood is: %f percent' % myLoss)
+
 		    #ipdb.set_trace()
 		    '''
                     # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
@@ -468,12 +483,14 @@ def train():
 		normalizedLoss = total_loss[0]/nTargets
 		#ipdb.set_trace()
                 normalizedPerplexity = total_perplexity/nTargets
+		#normalizedLikelihood = badCount/nTargets
 		#print('Lines no. %d: line processing time: %f ms' % (count_100, lineProcessingTimeMs))
                 #print('Lines no. %d: net train time: %f ms' % (count_100, netProcessingTimeMs))
 		#print('for time out of net time: %f percent' % forPercent)
 		#print('for absolute time %f ms' % forProcessingTimeMs)
                 #print('normalized loss: %f' % normalizedLoss) 
                 print('normalized perplexity: %f' % normalizedPerplexity)
+                #print('normalized likelihood: %f' % normalizedLikelihood)
 		print('##############	%d	################' % count_100)
 # Loop over epochs.
 lr = args.lr
